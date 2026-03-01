@@ -1,0 +1,157 @@
+<div class="dashboard animate-fade">
+
+
+    <div class="kpi-grid">
+        <div class="kpi-card blue">
+            <span class="kpi-icon">📦</span>
+            <div class="kpi-label">Total Inventory</div>
+            <div class="kpi-value">{{ summary.totalProducts | number }}</div>
+            <div class="kpi-sub">Active products</div>
+        </div>
+        <div class="kpi-card red">
+            <span class="kpi-icon">⚠️</span>
+            <div class="kpi-label">Low Stock Alerts</div>
+            <div class="kpi-value">{{ summary.lowStockItems }}</div>
+            <div class="kpi-sub">Items below reorder level</div>
+        </div>
+        <div class="kpi-card green">
+            <span class="kpi-icon">✅</span>
+            <div class="kpi-label">Auto-Restock Status</div>
+            <div class="kpi-value">{{ summary.pendingOrders }}</div>
+            <div class="kpi-sub">POs pending approval</div>
+        </div>
+        <div class="kpi-card amber">
+            <span class="kpi-icon">🚨</span>
+            <div class="kpi-label">Out of Stock</div>
+            <div class="kpi-value">{{ summary.outOfStockItems }}</div>
+            <div class="kpi-sub">Immediate attention needed</div>
+        </div>
+    </div>
+
+
+    <div class="chart-2-1" style="margin-bottom: 20px;">
+        <div class="card">
+            <div class="card-title">
+                Inventory Trends (6 Months)
+                <span class="badge pend" style="font-size:11px;">Live</span>
+            </div>
+            <canvas baseChart [data]="trendData" [options]="trendOptions" [type]="'line'"
+                style="max-height: 220px;"></canvas>
+        </div>
+        <div class="card">
+            <div class="card-title">Stock by Category</div>
+            <canvas baseChart [data]="pieData" [options]="pieOptions" [type]="'doughnut'"
+                style="max-height: 220px;"></canvas>
+        </div>
+    </div>
+
+
+    <div class="two-col">
+
+
+        <div class="table-card">
+            <div class="table-header">
+                <span>⚠️ Low Stock Items</span>
+                <a routerLink="/inventory" class="view-link">View all →</a>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>SKU</th>
+                        <th>Product</th>
+                        <th>Stock</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let p of lowStockItems">
+                        <td><span class="sku-text">{{ p.sku }}</span></td>
+                        <td>{{ p.name }}</td>
+                        <td>{{ p.current_stock }}</td>
+                        <td>
+                            <span class="badge" [ngClass]="getStatusClass(p.current_stock, p.reorder_level)">
+                                {{ getStatusLabel(p.current_stock, p.reorder_level) }}
+                            </span>
+                        </td>
+                    </tr>
+
+                    <ng-container *ngIf="lowStockItems.length === 0 && !loading">
+                        <tr>
+                            <td><span class="sku-text">SKU-001</span></td>
+                            <td>Laptop Stand Pro</td>
+                            <td>5</td>
+                            <td><span class="badge low">Low Stock</span></td>
+                        </tr>
+                        <tr>
+                            <td><span class="sku-text">SKU-042</span></td>
+                            <td>USB-C Hub 7-in-1</td>
+                            <td>2</td>
+                            <td><span class="badge crit">Critical</span></td>
+                        </tr>
+                        <tr>
+                            <td><span class="sku-text">SKU-103</span></td>
+                            <td>Monitor 27" 4K</td>
+                            <td>0</td>
+                            <td><span class="badge out">Out of Stock</span></td>
+                        </tr>
+                    </ng-container>
+                </tbody>
+            </table>
+        </div>
+
+
+        <div class="table-card">
+            <div class="table-header">
+                <span>🛒 Recent Purchase Orders</span>
+                <a routerLink="/orders" class="view-link">View all →</a>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>PO #</th>
+                        <th>Vendor</th>
+                        <th>Qty</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let o of recentOrders">
+                        <td>PO-{{ o.id }}</td>
+                        <td>{{ o.vendor?.name || '—' }}</td>
+                        <td>{{ o.quantity }}</td>
+                        <td>
+                            <span class="badge" [ngClass]="{
+                'pend': o.status === 'PENDING',
+                'appr': o.status === 'APPROVED',
+                'disp': o.status === 'DISPATCHED'
+              }">{{ o.status }}</span>
+                        </td>
+                    </tr>
+
+                    <ng-container *ngIf="recentOrders.length === 0 && !loading">
+                        <tr>
+                            <td>PO-2024</td>
+                            <td>TechSupplies</td>
+                            <td>50</td>
+                            <td><span class="badge pend">PENDING</span></td>
+                        </tr>
+                        <tr>
+                            <td>PO-2023</td>
+                            <td>LogiVendor</td>
+                            <td>120</td>
+                            <td><span class="badge appr">APPROVED</span></td>
+                        </tr>
+                        <tr>
+                            <td>PO-2022</td>
+                            <td>OfficeGear</td>
+                            <td>30</td>
+                            <td><span class="badge disp">DISPATCHED</span></td>
+                        </tr>
+                    </ng-container>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+</div>

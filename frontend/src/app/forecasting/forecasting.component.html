@@ -1,0 +1,103 @@
+<div class="forecasting animate-fade">
+
+    <div class="page-title">🤖 AI <span>Demand Forecasting</span></div>
+    <p class="subtitle">scikit-learn model predicts stock requirements using historical transaction data</p>
+
+
+    <div class="ai-status-badge">
+        <div class="pulse"></div>
+        ML SERVICE ACTIVE · scikit-learn · pandas · numpy · FastAPI
+        <span *ngIf="lastRunTime" class="run-time">Last run: {{ lastRunTime }}</span>
+    </div>
+
+
+    <div class="toolbar">
+        <select class="filter-sel" [(ngModel)]="selectedHorizon">
+            <option value="7">7-Day Forecast</option>
+            <option value="14">14-Day Forecast</option>
+            <option value="30">30-Day Forecast</option>
+        </select>
+        <div class="spacer"></div>
+        <button class="btn btn-primary" (click)="runForecast()" [disabled]="running">
+            {{ running ? '⟳ Running...' : '🚀 Run Forecast Now' }}
+        </button>
+    </div>
+
+
+    <div class="chart-2-1" style="margin-bottom:20px">
+        <div class="card">
+            <div class="card-title">
+                Forecast Trend — Laptop Stand Pro (SKU-001)
+                <span class="badge appr" style="font-size:11px">Live Prediction</span>
+            </div>
+            <canvas baseChart [data]="fcData" [options]="fcOptions" [type]="'line'" style="max-height:220px"></canvas>
+        </div>
+        <div class="card">
+            <div class="card-title">
+                Stockout Risk
+                <span class="badge out" style="font-size:11px">24 At Risk</span>
+            </div>
+            <canvas baseChart [data]="riskData" [options]="riskOptions" [type]="'doughnut'"
+                style="max-height:220px"></canvas>
+        </div>
+    </div>
+
+
+    <div class="table-card">
+        <div class="table-header">
+            Forecast Summary — Next {{ selectedHorizon }} Days
+        </div>
+
+        <div class="loading-row" *ngIf="loading">⟳ Loading forecasts...</div>
+
+        <table *ngIf="!loading">
+            <thead>
+                <tr>
+                    <th>SKU</th>
+                    <th>Product</th>
+                    <th>Current Stock</th>
+                    <th>Forecasted Demand</th>
+                    <th>Confidence</th>
+                    <th>Risk Level</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr *ngFor="let f of forecasts">
+                    <td><span class="sku-text">{{ f.Product?.sku || '—' }}</span></td>
+                    <td class="prod-name">{{ f.Product?.name || 'Product #' + f.product_id }}</td>
+                    <td [ngClass]="{'stock-low': (f.Product?.current_stock || 0) <= (f.Product?.reorder_level || 0)}">
+                        {{ f.Product?.current_stock || '—' }}
+                    </td>
+                    <td class="forecast-val">{{ f.predicted_qty | number:'1.0-0' }} units</td>
+                    <td>
+                        <div class="conf-wrap">
+                            <div class="progress-bar">
+                                <div class="fill" [style.width]="getConfidencePct(f.confidence)"></div>
+                            </div>
+                            <span class="conf-label">{{ getConfidencePct(f.confidence) }}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="risk-indicator" [ngClass]="getRiskClass(f.risk_level)">
+                            {{ f.risk_level === 'CRITICAL' ? '🔴' : f.risk_level === 'HIGH' ? '🟠' : f.risk_level ===
+                            'MEDIUM' ? '🟡' : '🟢' }}
+                            {{ f.risk_level }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge" [ngClass]="{
+              'crit': f.risk_level === 'CRITICAL' || f.risk_level === 'HIGH',
+              'low' : f.risk_level === 'MEDIUM',
+              'ok'  : f.risk_level === 'LOW'
+            }" style="cursor:pointer">
+                            {{ f.risk_level === 'CRITICAL' || f.risk_level === 'HIGH' ? 'Auto-Restock' :
+                            f.risk_level === 'MEDIUM' ? 'Watch' : 'Stable' }}
+                        </span>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>

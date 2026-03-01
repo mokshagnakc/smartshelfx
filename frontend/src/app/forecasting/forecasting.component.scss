@@ -1,0 +1,96 @@
+.forecasting {
+    animation: fadeIn 0.4s ease;
+}
+
+.subtitle {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+}
+
+.run-time {
+    margin-left: 12px;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.filter-sel {
+    background: rgba(0, 180, 255, 0.06);
+    border: 1px solid rgba(0, 180, 255, 0.2);
+    border-radius: 8px;
+    padding: 9px 12px;
+    color: #fff;
+    font-family: var(--font-body);
+    font-size: 13px;
+    outline: none;
+    cursor: pointer;
+
+    option {
+        background: var(--bg-primary);
+    }
+}
+
+.card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.loading-row {
+    padding: 28px;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.prod-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.forecast-val {
+    font-family: var(--font-mono);
+    color: var(--cyan);
+    font-weight: 600;
+}
+
+.stock-low {
+    color: var(--amber) !important;
+    font-weight: 700;
+}
+
+.conf-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.conf-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    min-width: 32px;
+}
+
+.risk-indicator {
+    font-size: 12px;
+    font-weight: 600;
+
+    &.crit {
+        color: var(--red);
+    }
+
+    &.risk-high {
+        color: #ff8c00;
+    }
+
+    &.risk-med {
+        color: var(--amber);
+    }
+
+    &.risk-low {
+        color: var(--teal);
+    }
+}

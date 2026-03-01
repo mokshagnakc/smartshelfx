@@ -1,0 +1,40 @@
+<aside class="sidebar" [class.collapsed]="collapsed">
+
+
+    <div class="sidebar-logo">
+        <div class="logo-text" *ngIf="!collapsed">
+            <h1>Smart<span>Shelf</span>X</h1>
+            <p>AI-POWERED INVENTORY</p>
+        </div>
+        <div class="logo-icon" *ngIf="collapsed">SX</div>
+        <button class="toggle-btn" (click)="onToggle()" title="Toggle sidebar">
+            {{ collapsed ? '›' : '‹' }}
+        </button>
+    </div>
+
+    <nav class="sidebar-nav">
+        <a *ngFor="let item of navItems" class="nav-item" [routerLink]="item.route" routerLinkActive="active"
+            [title]="collapsed ? item.label : ''">
+            <span class="nav-icon">{{ item.icon }}</span>
+            <span class="nav-label" *ngIf="!collapsed">{{ item.label }}</span>
+        </a>
+    </nav>
+
+
+    <div class="sidebar-footer" *ngIf="!collapsed">
+        <div class="user-row">
+            <div class="avatar">{{ auth.getInitials() }}</div>
+            <div class="user-info">
+                <div class="user-name">{{ auth.getName() }}</div>
+                <div class="user-role">{{ auth.getRole() }}</div>
+            </div>
+        </div>
+        <button class="logout-btn" (click)="logout()">⏻ Logout</button>
+    </div>
+
+    <div class="sidebar-footer-mini" *ngIf="collapsed">
+        <div class="avatar-mini">{{ auth.getInitials() }}</div>
+        <button class="logout-btn-mini" (click)="logout()" title="Logout">⏻</button>
+    </div>
+
+</aside>
