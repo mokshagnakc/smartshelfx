@@ -1,15 +1,18 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
+import { DOCUMENT } from '@angular/common';
 import { AuthService } from '../services/auth.service';
 
 export const authGuard: CanActivateFn = () => {
     const auth = inject(AuthService);
     const router = inject(Router);
+    const doc = inject(DOCUMENT);
+    const port = doc.defaultView?.location.port ?? '';
 
     if (auth.getToken()) return true;
 
-    router.navigate(['/auth/login']);
-    return false;
+    // ✅ Port-aware: 4201 → admin login, anything else → regular login
+    return router.createUrlTree(port === '4201' ? ['/auth/admin'] : ['/auth/login']);
 };
 
 export const guestGuard: CanActivateFn = () => {
@@ -18,6 +21,5 @@ export const guestGuard: CanActivateFn = () => {
 
     if (!auth.getToken()) return true;
 
-    router.navigate(['/dashboard']);
-    return false;
+    return router.createUrlTree(['/dashboard']);
 };

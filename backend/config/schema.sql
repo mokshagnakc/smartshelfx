@@ -86,36 +86,3 @@ CREATE TABLE IF NOT EXISTS forecast_results (
 );
 
 
-
-INSERT IGNORE INTO products (name, sku, category, vendor_id, reorder_level, current_stock, unit_price) VALUES
-('Laptop Stand Pro',   'SKU-001', 'Electronics', 3, 15, 5,   29.99),
-('Ergonomic Chair',    'SKU-002', 'Furniture',   4, 10, 42,  299.00),
-('USB-C Hub 7-in-1',   'SKU-042', 'Electronics', 3, 20, 2,   49.99),
-('Wireless Keyboard',  'SKU-087', 'Electronics', 5, 25, 8,   79.99),
-('Monitor 27 Inch 4K', 'SKU-103', 'Electronics', 3, 5,  0,   599.00),
-('A4 Paper 500pk',     'SKU-120', 'Supplies',    4, 50, 200, 12.99),
-('Mechanical Mouse',   'SKU-156', 'Electronics', 5, 30, 11,  59.99),
-('Standing Desk',      'SKU-177', 'Furniture',   4, 8,  15,  459.00),
-('Thermal Label Roll', 'SKU-201', 'Supplies',    4, 10, 3,   24.99),
-('Barcode Scanner',    'SKU-244', 'Electronics', 3, 10, 18,  189.00);
-
-INSERT IGNORE INTO stock_transactions (product_id, quantity, type, handled_by, timestamp, notes) VALUES
-(1, 50,  'IN',  2, DATE_SUB(NOW(), INTERVAL 30 DAY), 'Initial stock from PO-2019'),
-(1, 30,  'OUT', 2, DATE_SUB(NOW(), INTERVAL 20 DAY), 'Dispatched batch #1'),
-(1, 15,  'OUT', 2, DATE_SUB(NOW(), INTERVAL 10 DAY), 'Dispatched batch #2'),
-(3, 100, 'IN',  2, DATE_SUB(NOW(), INTERVAL 28 DAY), 'Shipment from TechSupplies'),
-(3, 60,  'OUT', 2, DATE_SUB(NOW(), INTERVAL 18 DAY), 'Customer orders'),
-(3, 38,  'OUT', 2, DATE_SUB(NOW(), INTERVAL 8 DAY),  'Customer orders'),
-(4, 50,  'IN',  2, DATE_SUB(NOW(), INTERVAL 25 DAY), 'Restock from LogiVendor'),
-(4, 42,  'OUT', 2, DATE_SUB(NOW(), INTERVAL 7 DAY),  'Sales dispatch'),
-(5, 10,  'IN',  2, DATE_SUB(NOW(), INTERVAL 22 DAY), 'Initial stock'),
-(5, 10,  'OUT', 2, DATE_SUB(NOW(), INTERVAL 5 DAY),  'Sold out'),
-(6, 300, 'IN',  2, DATE_SUB(NOW(), INTERVAL 35 DAY), 'Bulk order'),
-(6, 100, 'OUT', 2, DATE_SUB(NOW(), INTERVAL 15 DAY), 'Office dispatch');
-
-INSERT IGNORE INTO alerts (product_id, type, message, is_read) VALUES
-(1, 'LOW_STOCK',         'Laptop Stand Pro (SKU-001): only 5 units left (reorder: 15)',   0),
-(3, 'LOW_STOCK',         'USB-C Hub 7-in-1 (SKU-042): only 2 units left (reorder: 20)',   0),
-(5, 'OUT_OF_STOCK',      'Monitor 27 Inch 4K (SKU-103): completely out of stock!',         0),
-(9, 'LOW_STOCK',         'Thermal Label Roll (SKU-201): only 3 units left (reorder: 10)', 0),
-(1, 'RESTOCK_SUGGESTED', 'AI suggests restocking Laptop Stand Pro — forecasted demand: 42 units this week', 0);

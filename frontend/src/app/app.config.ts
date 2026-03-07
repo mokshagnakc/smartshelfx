@@ -3,7 +3,7 @@ import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { routes } from './app.routes';
-import { jwtInterceptor } from 'src/app/shared/interceptors/jwt.interceptor';
+import { jwtInterceptor } from './shared/interceptors/jwt.interceptor';
 
 export const appConfig: ApplicationConfig = {
     providers: [

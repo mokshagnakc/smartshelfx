@@ -16,6 +16,12 @@ export class AuthService {
         this.loadFromStorage();
     }
 
+    /** Returns the correct login route based on which port the app is running on */
+    getLoginRoute(): string {
+        const port = window?.location?.port ?? '';
+        return port === '4201' ? '/auth/admin' : '/auth/login';
+    }
+
     login(payload: LoginPayload): Observable<AuthResponse> {
         return this.http.post<AuthResponse>(`${this.API}/auth/login`, payload).pipe(
             tap(res => {
@@ -46,7 +52,8 @@ export class AuthService {
         localStorage.removeItem('ssxUserId');
         this.currentUser.set(null);
         this.isLoggedIn.set(false);
-        this.router.navigate(['/auth/login']);
+        // ✅ Port-aware redirect: admin port 4201 → admin login, others → regular login
+        this.router.navigate([this.getLoginRoute()]);
     }
 
     getToken(): string | null {

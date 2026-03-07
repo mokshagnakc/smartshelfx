@@ -174,12 +174,15 @@ const Alert = sequelize.define('Alert', {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: false
+    },
+    created_at: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW
     }
 }, {
     tableName: 'alerts',
-    timestamps: false,
-    createdAt: 'created_at',
-    updatedAt: false
+    timestamps: false   // created_at managed manually above
 });
 
 const ForecastResult = sequelize.define('ForecastResult', {

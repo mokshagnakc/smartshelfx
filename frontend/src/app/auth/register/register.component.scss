@@ -1,3 +1,4 @@
+/* Mirrors login with teal/green accent */
 .register-page {
     min-height: 100vh;
     background: #07090f;
@@ -383,5 +384,75 @@ select {
 
     a:hover {
         text-decoration: underline;
+    }
+}
+
+.pw-group {
+    position: relative;
+}
+
+.pw-tooltip {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    z-index: 999;
+    background: #0d1117;
+    border: 1px solid rgba(0, 255, 200, 0.3);
+    border-radius: 10px;
+    padding: 14px 16px;
+    min-width: 240px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 255, 200, 0.08);
+    animation: fadeIn 0.15s ease;
+}
+
+.pw-tt-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(0, 255, 200, 0.7);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 10px;
+}
+
+.pw-rule {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.4);
+    padding: 3px 0;
+    transition: color 0.2s;
+
+    &.pass {
+        color: #00ffcc;
+    }
+
+    .rule-icon {
+        font-size: 11px;
+        width: 14px;
+        text-align: center;
+    }
+}
+
+.error-banner {
+    background: rgba(255, 77, 109, 0.12);
+    border: 1px solid rgba(255, 77, 109, 0.3);
+    border-radius: 8px;
+    color: #ff4d6d;
+    font-size: 13px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    text-align: center;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }

@@ -63,7 +63,7 @@ const start = async () => {
     try {
         await sequelize.authenticate();
         console.log('✅ Database connected.');
-        await sequelize.sync({ alter: false });
+        await sequelize.sync({ alter: true });
         console.log('✅ Models synced.');
         app.listen(PORT, '0.0.0.0', () => {
             console.log(`✅ SmartShelfX API running on http://localhost:${PORT}`);

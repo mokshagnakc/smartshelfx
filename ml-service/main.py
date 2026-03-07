@@ -6,7 +6,8 @@ from decimal import Decimal
 
 import numpy as np
 import pandas as pd
-import mysql.connector
+import pymysql
+import pymysql.cursors
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,11 +29,13 @@ app.add_middleware(
 )
 
 DB_CONFIG = {
-    "host":     os.getenv("DB_HOST",  "localhost"),
+    "host":     os.getenv("DB_HOST",   "localhost"),
     "port":     int(os.getenv("DB_PORT", 3306)),
-    "database": os.getenv("DB_NAME",  "smartshelfx"),
-    "user":     os.getenv("DB_USER",  "root"),
-    "password": os.getenv("DB_PASS",  ""),
+    "db":       os.getenv("DB_NAME",   "smartshelfx"),
+    "user":     os.getenv("DB_USER",   "root"),
+    "password": os.getenv("DB_PASS",   ""),
+    "charset":  "utf8mb4",
+    "cursorclass": pymysql.cursors.DictCursor,
 }
 
 FORECAST_DAYS        = int(os.getenv("FORECAST_DAYS",        7))
@@ -88,15 +91,15 @@ class ProductForecastResponse(BaseModel):
 
 def get_connection():
     try:
-        return mysql.connector.connect(**DB_CONFIG)
-    except mysql.connector.Error as e:
+        return pymysql.connect(**DB_CONFIG)
+    except pymysql.Error as e:
         print(f"[DB ERROR] {e}")
         raise HTTPException(status_code=503, detail=f"Database connection failed: {str(e)}")
 
 
 def get_all_products() -> List[Dict[str, Any]]:
     conn   = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
     cursor.execute("SELECT id, name, sku, category, current_stock, reorder_level FROM products ORDER BY id")
     rows   = cursor.fetchall()
     cursor.close()
@@ -106,7 +109,7 @@ def get_all_products() -> List[Dict[str, Any]]:
 
 def get_transactions(product_id: int) -> pd.DataFrame:
     conn   = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
     cursor.execute("""
         SELECT DATE(timestamp) AS tx_date, type, SUM(quantity) AS daily_qty
         FROM stock_transactions
@@ -294,7 +297,7 @@ def run_forecast():
 def forecast_single(product_id: int):
     try:
         conn   = get_connection()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor()
         cursor.execute("SELECT id, name, sku, current_stock, reorder_level FROM products WHERE id = %s", (product_id,))
         p = cursor.fetchone()
         cursor.close()
@@ -330,7 +333,7 @@ def forecast_single(product_id: int):
 def demand_summary():
     try:
         conn   = get_connection()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor()
         cursor.execute("""
             SELECT p.id, p.name, p.sku, p.current_stock, p.reorder_level,
                 COALESCE(SUM(CASE WHEN t.type='OUT' THEN t.quantity ELSE 0 END), 0) AS total_out_30d,
@@ -368,7 +371,7 @@ def demand_summary():
 def stock_velocity():
     try:
         conn   = get_connection()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor()
         cursor.execute("""
             SELECT p.id, p.name, p.sku, p.category, p.current_stock,
                 COALESCE(SUM(t.quantity), 0)                  AS units_sold_7d,
