@@ -40,6 +40,12 @@ export class LoginComponent {
 
         this.auth.login(this.form.value).subscribe({
             next: (res) => {
+                if (res.role === 'ADMIN') {
+                    this.auth.logout();
+                    this.loading = false;
+                    this.errorMsg = 'You are an Admin. You cannot login here. You have a separate login link at port 4201.';
+                    return;
+                }
                 this.notify.success(`Welcome, ${res.name}!`);
                 this.redirectByRole(res.role);
             },
@@ -48,7 +54,6 @@ export class LoginComponent {
                 const msg = err?.error?.error || err?.message || 'Login failed. Check credentials.';
                 this.errorMsg = msg;
                 this.notify.error(msg);
-                console.error('[LOGIN ERROR]', err);
             }
         });
     }

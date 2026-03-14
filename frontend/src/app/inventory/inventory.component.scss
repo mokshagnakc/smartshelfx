@@ -173,6 +173,57 @@
     }
 }
 
+/* ── Import Error Panel ── */
+.import-error-panel {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    background: rgba(255, 77, 109, 0.08);
+    border: 1px solid rgba(255, 77, 109, 0.3);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 16px;
+    animation: slideUp 0.3s ease;
+
+    .error-icon {
+        font-size: 22px;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+
+    .error-body {
+        flex: 1;
+
+        strong {
+            color: #ff4d6d;
+            font-size: 14px;
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        p {
+            color: rgba(255, 255, 255, 0.65);
+            font-size: 13px;
+            margin: 0 0 6px;
+            line-height: 1.5;
+        }
+
+        .error-fix {
+            color: rgba(255, 255, 255, 0.45);
+            font-size: 12px;
+
+            code {
+                background: rgba(255, 255, 255, 0.08);
+                padding: 1px 6px;
+                border-radius: 4px;
+                font-family: 'JetBrains Mono', monospace;
+                color: #00b4ff;
+                font-size: 11px;
+            }
+        }
+    }
+}
+
 /* ── Form Panel ── */
 .form-panel {
     background: rgba(255, 255, 255, 0.03);
@@ -685,4 +736,16 @@ td {
         opacity: 1;
         transform: translateY(0);
     }
+}
+
+.vendor-id-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(0, 255, 204, 0.08);
+    border: 1px solid rgba(0, 255, 204, 0.2);
+    color: #00ffcc;
+    font-size: 11px;
+    font-family: monospace;
+    font-weight: 700;
 }

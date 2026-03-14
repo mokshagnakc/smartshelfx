@@ -22,8 +22,9 @@ router.get('/summary', async (req, res) => {
             where: { current_stock: 0 }
         });
 
+        // Only count POs that have a vendor assigned (orphaned POs excluded)
         const pendingOrders = await PurchaseOrder.count({
-            where: { status: 'PENDING' }
+            where: { status: 'PENDING', vendor_id: { [Op.ne]: null } }
         });
 
         res.json({ totalProducts, lowStockItems, outOfStockItems, pendingOrders });

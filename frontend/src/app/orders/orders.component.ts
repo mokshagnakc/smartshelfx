@@ -2,9 +2,12 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { ApiService } from '../shared/services/api.service';
+import { AuthService } from '../shared/services/auth.service';
 import { NotificationService } from '../shared/services/notification.service';
 import { PurchaseOrder, ForecastResult, Product, User } from '../shared/models/interfaces';
+import { environment } from '../../environments/environment';
 
 @Component({
     selector: 'app-orders',
@@ -16,10 +19,14 @@ import { PurchaseOrder, ForecastResult, Product, User } from '../shared/models/i
 export class OrdersComponent implements OnInit {
 
     orders: PurchaseOrder[] = [];
+    pendingPOs: PurchaseOrder[] = [];   // vendor: pending approvals only
     suggestions: ForecastResult[] = [];
     products: Product[] = [];
+    vendors: User[] = [];
     loading = false;
+    loadingPending = false;
     showCreate = false;
+    actioningId: number | null = null;   // tracks which PO is being acted on
 
     filterStatus = '';
     page = 1;
@@ -27,17 +34,29 @@ export class OrdersComponent implements OnInit {
 
     form!: FormGroup;
 
+    get role() { return this.auth.getRole(); }
+    get isAdmin() { return this.role === 'ADMIN'; }
+    get isManager() { return this.role === 'MANAGER'; }
+    get isVendor() { return this.role === 'VENDOR'; }
+
     constructor(
         private api: ApiService,
+        private auth: AuthService,
         private notify: NotificationService,
-        private fb: FormBuilder
+        private fb: FormBuilder,
+        private http: HttpClient
     ) { }
 
     ngOnInit() {
         this.buildForm();
         this.loadOrders();
         this.loadSuggestions();
-        this.loadProducts();
+        if (this.isVendor) {
+            this.loadPendingPOs();
+        } else {
+            this.loadProducts();
+            this.loadVendors();
+        }
     }
 
     buildForm() {
@@ -51,18 +70,31 @@ export class OrdersComponent implements OnInit {
 
     loadOrders() {
         this.loading = true;
-        const filters: any = { page: this.page, limit: 15 };
+        const filters: any = { page: this.page, limit: 50 };
         if (this.filterStatus) filters.status = this.filterStatus;
         this.api.getOrders(filters).subscribe({
             next: res => { this.orders = res.data; this.total = res.total; this.loading = false; },
-            error: () => { this.loading = false; this.orders = this.demoOrders(); }
+            error: () => { this.loading = false; this.orders = []; }
+        });
+    }
+
+    /** Load PENDING POs for the logged-in vendor — shown as approval cards */
+    loadPendingPOs() {
+        this.loadingPending = true;
+        this.api.getOrders({ status: 'PENDING', limit: 50 }).subscribe({
+            next: res => { this.pendingPOs = res.data; this.loadingPending = false; },
+            error: () => { this.loadingPending = false; this.pendingPOs = []; }
         });
     }
 
     loadSuggestions() {
+        if (this.isVendor) return;
         this.api.getOrderSuggestions().subscribe({
             next: res => this.suggestions = res,
-            error: () => this.suggestions = this.demoSuggestions()
+            error: (err) => {
+                this.suggestions = [];
+                this.notify.error('Could not load AI suggestions: ' + (err?.error?.error || err?.message || 'Server error'));
+            }
         });
     }
 
@@ -73,10 +105,29 @@ export class OrdersComponent implements OnInit {
         });
     }
 
+    loadVendors() {
+        this.http.get<any>(environment.apiUrl + '/auth/users').subscribe({
+            next: res => {
+                const all = Array.isArray(res) ? res : (res.data || []);
+                this.vendors = all.filter((u: any) => u.role === 'VENDOR');
+            },
+            error: () => { }
+        });
+    }
+
+
     createOrder() {
         if (this.form.invalid) { this.form.markAllAsTouched(); return; }
         this.api.createOrder(this.form.value).subscribe({
-            next: () => { this.notify.success('Purchase order created & vendor notified!'); this.showCreate = false; this.form.reset(); this.loadOrders(); },
+            next: () => {
+                this.notify.success('Purchase order created & vendor notified!');
+                this.showCreate = false;
+                this.form.reset();
+                this.page = 1;              // always go back to page 1 to see new PO
+                this.filterStatus = '';     // clear any status filter so new PO is visible
+                this.loadOrders();
+                this.loadSuggestions();     // refresh suggestions too
+            },
             error: err => this.notify.error(err.error?.error || 'Failed to create order')
         });
     }
@@ -88,6 +139,40 @@ export class OrdersComponent implements OnInit {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
+    /** Vendor approves a PO */
+    approveOrder(id: number) {
+        this.actioningId = id;
+        this.api.updateOrderStatus(id, 'APPROVED').subscribe({
+            next: () => {
+                this.actioningId = null;
+                this.notify.success('✅ Order approved! Manager has been notified.');
+                this.pendingPOs = this.pendingPOs.filter(p => p.id !== id);
+                this.loadOrders();
+            },
+            error: err => {
+                this.actioningId = null;
+                this.notify.error(err.error?.error || 'Approval failed');
+            }
+        });
+    }
+
+    /** Vendor rejects a PO */
+    rejectOrder(id: number) {
+        this.actioningId = id;
+        this.api.updateOrderStatus(id, 'CANCELLED').subscribe({
+            next: () => {
+                this.actioningId = null;
+                this.notify.success('❌ Order rejected. Manager has been notified.');
+                this.pendingPOs = this.pendingPOs.filter(p => p.id !== id);
+                this.loadOrders();
+            },
+            error: err => {
+                this.actioningId = null;
+                this.notify.error(err.error?.error || 'Rejection failed');
+            }
+        });
+    }
+
     updateStatus(id: number, status: string) {
         this.api.updateOrderStatus(id, status).subscribe({
             next: () => { this.notify.success(`Order marked as ${status}`); this.loadOrders(); },
@@ -95,20 +180,12 @@ export class OrdersComponent implements OnInit {
         });
     }
 
-    statusClass(s: string) { return { PENDING: 'pend', APPROVED: 'appr', DISPATCHED: 'disp', DELIVERED: 'ok', CANCELLED: 'out' }[s] || ''; }
-
-    private demoOrders(): PurchaseOrder[] {
-        return [
-            { id: 2024, product_id: 1, Product: { id: 1, name: 'Laptop Stand Pro', sku: 'SKU-001', category: 'Electronics', vendor_id: 3, reorder_level: 15, current_stock: 5, unit_price: 29.99 } as Product, vendor_id: 3, vendor: { id: 3, name: 'TechSupplies', username: 'tech', email: 'vendor@techsupplies.com', role: 'VENDOR' } as User, quantity: 50, status: 'PENDING', created_at: '2026-02-20' },
-            { id: 2023, product_id: 3, Product: { id: 3, name: 'USB-C Hub 7-in-1', sku: 'SKU-042', category: 'Electronics', vendor_id: 3, reorder_level: 20, current_stock: 2, unit_price: 49.99 } as Product, vendor_id: 3, vendor: { id: 3, name: 'TechSupplies', username: 'tech', email: 'vendor@techsupplies.com', role: 'VENDOR' } as User, quantity: 120, status: 'APPROVED', created_at: '2026-02-18' },
-            { id: 2022, product_id: 6, Product: { id: 6, name: 'A4 Paper 500pk', sku: 'SKU-120', category: 'Supplies', vendor_id: 3, reorder_level: 50, current_stock: 200, unit_price: 12.99 } as Product, vendor_id: 3, vendor: { id: 3, name: 'OfficeGear Co.', username: 'og', email: 'og@vendor.com', role: 'VENDOR' } as User, quantity: 300, status: 'DISPATCHED', created_at: '2026-02-15' },
-        ];
+    getVendorName(id: number | null): string {
+        if (!id) return '—';
+        return this.vendors.find(v => v.id === id)?.name || `Vendor #${id}`;
     }
 
-    private demoSuggestions(): ForecastResult[] {
-        return [
-            { id: 1, product_id: 1, Product: { id: 1, name: 'Laptop Stand Pro', sku: 'SKU-001', category: 'Electronics', vendor_id: 3, reorder_level: 15, current_stock: 5, unit_price: 29.99 }, forecast_date: '', predicted_qty: 50, confidence: 0.92, risk_level: 'HIGH', created_at: '' },
-            { id: 2, product_id: 3, Product: { id: 3, name: 'USB-C Hub 7-in-1', sku: 'SKU-042', category: 'Electronics', vendor_id: 3, reorder_level: 20, current_stock: 2, unit_price: 49.99 }, forecast_date: '', predicted_qty: 100, confidence: 0.88, risk_level: 'CRITICAL', created_at: '' },
-        ] as any[];
+    statusClass(s: string) {
+        return ({ PENDING: 'pend', APPROVED: 'appr', DISPATCHED: 'disp', DELIVERED: 'ok', CANCELLED: 'out' } as any)[s] || '';
     }
 }

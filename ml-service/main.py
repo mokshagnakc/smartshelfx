@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict
-from sklearn.linear_model import LinearRegression
+from xgboost import XGBRegressor
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_absolute_error
 
@@ -192,7 +192,15 @@ def forecast_product(product: Dict[str, Any]) -> Dict[str, Any]:
 
     scaler      = StandardScaler()
     X_tr_sc     = scaler.fit_transform(X_tr)
-    model       = LinearRegression()
+    model       = XGBRegressor(
+        n_estimators=100,
+        max_depth=4,
+        learning_rate=0.1,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        random_state=42,
+        verbosity=0
+    )
     model.fit(X_tr_sc, y_tr)
 
     confidence  = 0.75
@@ -226,15 +234,11 @@ def forecast_product(product: Dict[str, Any]) -> Dict[str, Any]:
 def save_forecast(f: Dict[str, Any]):
     conn   = get_connection()
     cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO forecast_results (product_id, forecast_date, predicted_qty, confidence, risk_level, created_at)
-        VALUES (%s, %s, %s, %s, %s, NOW())
-        ON DUPLICATE KEY UPDATE
-            predicted_qty = VALUES(predicted_qty),
-            confidence    = VALUES(confidence),
-            risk_level    = VALUES(risk_level),
-            created_at    = NOW()
-    """, (f["product_id"], f["forecast_date"], f["predicted_qty"], f["confidence"], f["risk_level"]))
+    cursor.execute("DELETE FROM forecast_results WHERE product_id = %s", (f["product_id"],))
+    cursor.execute(
+        "INSERT INTO forecast_results (product_id, forecast_date, predicted_qty, confidence, risk_level) VALUES (%s, %s, %s, %s, %s)",
+        (f["product_id"], f["forecast_date"], f["predicted_qty"], f["confidence"], f["risk_level"])
+    )
     conn.commit()
     cursor.close()
     conn.close()

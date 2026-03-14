@@ -3,6 +3,16 @@
     <!-- ── ADMIN / MANAGER DASHBOARD ─────────────────────────────── -->
     <ng-container *ngIf="!isVendor">
 
+        <!-- Category Filter -->
+        <div class="dash-filter-bar">
+            <span class="filter-label">📂 Filter by Category:</span>
+            <select class="cat-select" [(ngModel)]="filterCategory" (change)="onCategoryChange()">
+                <option value="">All Categories</option>
+                <option *ngFor="let c of categories" [value]="c">{{ c }}</option>
+            </select>
+            <span class="cat-count" *ngIf="filterCategory">Showing: <strong>{{ filterCategory }}</strong></span>
+        </div>
+
         <!-- KPI cards -->
         <div class="kpi-grid">
             <div class="kpi-card">
@@ -172,6 +182,38 @@
                     <div class="kpi-val">{{ orderStatusData[3] }}</div>
                     <div class="kpi-lbl">Delivered</div>
                 </div>
+            </div>
+        </div>
+
+        <!-- ── Pending Approvals Widget — always visible ────────── -->
+        <div class="vendor-pending-section">
+            <div class="vendor-pending-header">
+                <span>🕐 Pending Approvals</span>
+                <span class="vp-count" *ngIf="vendorPendingPOs.length > 0">{{ vendorPendingPOs.length }} awaiting</span>
+                <span class="vp-count-zero" *ngIf="!vendorPendingLoading && vendorPendingPOs.length === 0">All
+                    cleared</span>
+                <a routerLink="/orders" class="view-link" style="margin-left:auto">View all →</a>
+            </div>
+            <div class="vp-loading" *ngIf="vendorPendingLoading">⟳ Loading pending orders...</div>
+            <div class="vp-list" *ngIf="!vendorPendingLoading && vendorPendingPOs.length > 0">
+                <div class="vp-item" *ngFor="let o of vendorPendingPOs">
+                    <div class="vp-item-left">
+                        <span class="vp-po">PO-{{ o.id }}</span>
+                        <span class="vp-name">{{ o.Product?.name || '—' }}</span>
+                        <span class="vp-qty">{{ o.quantity }} units</span>
+                    </div>
+                    <div class="vp-item-actions">
+                        <button class="vp-approve" [disabled]="actioningId === o.id" (click)="approveFromDash(o.id)">
+                            {{ actioningId === o.id ? '⟳' : '✅ Approve' }}
+                        </button>
+                        <button class="vp-reject" [disabled]="actioningId === o.id" (click)="rejectFromDash(o.id)">
+                            {{ actioningId === o.id ? '⟳' : '❌ Reject' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="vp-empty" *ngIf="!vendorPendingLoading && vendorPendingPOs.length === 0">
+                ✅ No pending approvals at the moment.
             </div>
         </div>
 

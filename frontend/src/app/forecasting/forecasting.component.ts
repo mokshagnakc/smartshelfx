@@ -1,6 +1,5 @@
 import {
-    Component, OnInit, AfterViewInit, OnDestroy,
-    ViewChild, ElementRef, ChangeDetectorRef
+    Component, OnInit, OnDestroy, ChangeDetectorRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
@@ -19,11 +18,7 @@ Chart.register(...registerables);
     templateUrl: './forecasting.component.html',
     styleUrls: ['./forecasting.component.scss']
 })
-export class ForecastingComponent implements OnInit, AfterViewInit, OnDestroy {
-
-    @ViewChild('barCanvas') barCanvas!: ElementRef<HTMLCanvasElement>;
-    @ViewChild('doughnutCanvas') doughnutCanvas!: ElementRef<HTMLCanvasElement>;
-    @ViewChild('scrollRange') scrollRange!: ElementRef<HTMLInputElement>;
+export class ForecastingComponent implements OnInit, OnDestroy {
 
     private barChart?: Chart;
     private doughnutChart?: Chart;
@@ -31,35 +26,29 @@ export class ForecastingComponent implements OnInit, AfterViewInit, OnDestroy {
     forecasts: ForecastResult[] = [];
     loading = false;
     running = false;
-    chartsReady = false;
+    triggering = false;
     selectedHorizon = '7';
     lastRunTime = '';
 
     riskCounts = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 };
     totalAtRisk = 0;
 
-    // Scroll state
     visibleCount = 10;
     totalBars = 0;
-
     _scrollIndex = 0;
-    get scrollIndex() { return this._scrollIndex; }
-    set scrollIndex(val: number) {
-        this._scrollIndex = val;
-        this.updateBarChart();
-    }
 
-    // Full dataset (all products)
     allLabels: string[] = [];
     private allDemand: number[] = [];
     private allStock: number[] = [];
     private allBgColor: string[] = [];
     private allBdColor: string[] = [];
 
+    get scrollIndex() { return this._scrollIndex; }
+    set scrollIndex(v: number) { this._scrollIndex = v; this.updateBarChart(); }
     get scrollMax() { return Math.max(0, this.totalBars - this.visibleCount); }
-    get scrollPercent() { return this.scrollMax > 0 ? Math.round((this.scrollIndex / this.scrollMax) * 100) : 0; }
-    get visibleFrom() { return this.totalBars > 0 ? this.scrollIndex + 1 : 0; }
-    get visibleTo() { return Math.min(this.scrollIndex + this.visibleCount, this.totalBars); }
+    get scrollPercent() { return this.scrollMax > 0 ? Math.round((this._scrollIndex / this.scrollMax) * 100) : 0; }
+    get visibleFrom() { return this.totalBars > 0 ? this._scrollIndex + 1 : 0; }
+    get visibleTo() { return Math.min(this._scrollIndex + this.visibleCount, this.totalBars); }
 
     constructor(
         private api: ApiService,
@@ -68,13 +57,22 @@ export class ForecastingComponent implements OnInit, AfterViewInit, OnDestroy {
     ) { }
 
     ngOnInit() { this.loadForecasts(); }
-    ngAfterViewInit() { this.chartsReady = true; if (this.forecasts.length > 0) this.buildCharts(); }
     ngOnDestroy() { this.barChart?.destroy(); this.doughnutChart?.destroy(); }
 
     loadForecasts() {
         this.loading = true;
         this.api.getForecasts().subscribe({
-            next: res => { this.forecasts = res; this.afterLoad(); },
+            next: (res: any[]) => {
+                if (!Array.isArray(res)) { this.forecasts = []; this.afterLoad(); return; }
+                const seen = new Set<number>();
+                this.forecasts = res.filter(f => {
+                    const pid = Number(f.product_id);
+                    if (seen.has(pid)) return false;
+                    seen.add(pid);
+                    return true;
+                });
+                this.afterLoad();
+            },
             error: () => { this.forecasts = []; this.afterLoad(); }
         });
     }
@@ -82,7 +80,8 @@ export class ForecastingComponent implements OnInit, AfterViewInit, OnDestroy {
     afterLoad() {
         this.loading = false;
         this.cdr.detectChanges();
-        setTimeout(() => { if (this.chartsReady) this.buildCharts(); }, 50);
+        // Wait for Angular to update the DOM, then build charts
+        setTimeout(() => this.buildCharts(), 200);
     }
 
     buildCharts() {
@@ -92,7 +91,6 @@ export class ForecastingComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     prepareAllData() {
-        // Sort: CRITICAL → HIGH → MEDIUM → LOW, then by predicted_qty desc
         const order: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
         const sorted = [...this.forecasts].sort((a, b) => {
             const rDiff = (order[a.risk_level] ?? 4) - (order[b.risk_level] ?? 4);
@@ -104,13 +102,14 @@ export class ForecastingComponent implements OnInit, AfterViewInit, OnDestroy {
         this.allStock = sorted.map(f => f.Product?.current_stock ?? 0);
         this.allBgColor = sorted.map(f => this.riskBg(f.risk_level));
         this.allBdColor = sorted.map(f => this.riskFg(f.risk_level));
-
         this.totalBars = sorted.length;
-        this.scrollIndex = 0;
+        this._scrollIndex = 0;
 
-        // Risk counts for doughnut
+        const seen = new Set<number>();
         this.riskCounts = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 };
         this.forecasts.forEach(f => {
+            if (seen.has(f.product_id)) return;
+            seen.add(f.product_id);
             const k = f.risk_level as keyof typeof this.riskCounts;
             if (k in this.riskCounts) this.riskCounts[k]++;
         });
@@ -119,9 +118,13 @@ export class ForecastingComponent implements OnInit, AfterViewInit, OnDestroy {
 
     buildBar() {
         this.barChart?.destroy();
-        if (!this.barCanvas?.nativeElement) return;
+        this.barChart = undefined;
 
-        const ctx = this.barCanvas.nativeElement.getContext('2d')!;
+        const canvas = document.getElementById('ssx-bar-canvas') as HTMLCanvasElement;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
         const slice = this.getVisibleSlice();
 
         this.barChart = new Chart(ctx, {
@@ -154,14 +157,12 @@ export class ForecastingComponent implements OnInit, AfterViewInit, OnDestroy {
                 maintainAspectRatio: false,
                 animation: { duration: 300 },
                 plugins: {
-                    legend: {
-                        labels: { color: 'rgba(255,255,255,0.6)', boxWidth: 12, font: { size: 12 } }
-                    },
+                    legend: { labels: { color: 'rgba(255,255,255,0.6)', boxWidth: 12, font: { size: 12 } } },
                     tooltip: {
                         callbacks: {
                             title: (items) => {
-                                const idx = this.scrollIndex + items[0].dataIndex;
-                                return this.allLabels[idx] || items[0].label;
+                                const idx = this._scrollIndex + items[0].dataIndex;
+                                return this.allLabels[idx] || items[0].label as string;
                             },
                             label: (item) => ` ${item.dataset.label}: ${item.parsed.y} units`
                         }
@@ -173,8 +174,9 @@ export class ForecastingComponent implements OnInit, AfterViewInit, OnDestroy {
                             color: 'rgba(255,255,255,0.55)',
                             maxRotation: 35,
                             font: { size: 11 },
-                            callback: (_, i) => {
-                                const name = slice.labels[i] || '';
+                            callback: (_: any, i: number) => {
+                                const labels = this.barChart?.data?.labels as string[] || [];
+                                const name = labels[i] || '';
                                 return name.length > 12 ? name.slice(0, 11) + '…' : name;
                             }
                         },
@@ -192,9 +194,13 @@ export class ForecastingComponent implements OnInit, AfterViewInit, OnDestroy {
 
     buildDoughnut() {
         this.doughnutChart?.destroy();
-        if (!this.doughnutCanvas?.nativeElement) return;
+        this.doughnutChart = undefined;
 
-        const ctx = this.doughnutCanvas.nativeElement.getContext('2d')!;
+        const canvas = document.getElementById('ssx-donut-canvas') as HTMLCanvasElement;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
         this.doughnutChart = new Chart(ctx, {
             type: 'doughnut',
             data: {
@@ -224,24 +230,14 @@ export class ForecastingComponent implements OnInit, AfterViewInit, OnDestroy {
     updateBarChart() {
         if (!this.barChart) return;
         const slice = this.getVisibleSlice();
-
-        // Replace entire datasets to force Chart.js to re-render
         this.barChart.data.labels = [...slice.labels];
-        this.barChart.data.datasets[0] = {
-            ...this.barChart.data.datasets[0],
-            data: [...slice.demand],
-            backgroundColor: [...slice.bgColor],
-            borderColor: [...slice.bdColor],
-        };
-        this.barChart.data.datasets[1] = {
-            ...this.barChart.data.datasets[1],
-            data: [...slice.stock],
-        };
+        this.barChart.data.datasets[0] = { ...this.barChart.data.datasets[0], data: [...slice.demand], backgroundColor: [...slice.bgColor], borderColor: [...slice.bdColor] };
+        this.barChart.data.datasets[1] = { ...this.barChart.data.datasets[1], data: [...slice.stock] };
         this.barChart.update();
     }
 
     private getVisibleSlice() {
-        const start = this.scrollIndex;
+        const start = this._scrollIndex;
         const end = start + this.visibleCount;
         return {
             labels: this.allLabels.slice(start, end),
@@ -256,15 +252,27 @@ export class ForecastingComponent implements OnInit, AfterViewInit, OnDestroy {
         this.running = true;
         this.api.runForecast().subscribe({
             next: res => {
-                this.notify.success(`✅ Forecast complete! ${res.forecasts?.length || 0} products analysed.`);
+                const count = res.forecasts?.length || 0;
+                this.notify.success(`✅ Forecast complete! ${count} products analysed.`);
                 this.lastRunTime = new Date().toLocaleTimeString();
                 this.running = false;
-                this.loadForecasts();
+                setTimeout(() => this.loadForecasts(), 800);
             },
             error: () => {
                 this.notify.error('❌ ML Service unavailable — run: python ml-service/main.py');
                 this.running = false;
             }
+        });
+    }
+
+    triggerAlerts() {
+        this.triggering = true;
+        this.api.triggerVendorAlerts().subscribe({
+            next: (res: any) => {
+                this.triggering = false;
+                this.notify.success(`✅ ${res.alerts_created} vendor alert(s) sent for HIGH/CRITICAL products`);
+            },
+            error: () => { this.triggering = false; this.notify.error('Failed to send alerts'); }
         });
     }
 

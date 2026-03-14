@@ -20,6 +20,10 @@
         <button class="btn btn-primary" (click)="runForecast()" [disabled]="running">
             {{ running ? '⟳ Running ML Model...' : '🚀 Run Forecast Now' }}
         </button>
+        <button class="btn btn-warn" (click)="triggerAlerts()" [disabled]="triggering"
+            title="Send alerts to vendors for all HIGH/CRITICAL products">
+            {{ triggering ? '⟳ Sending...' : '🔔 Notify Vendors' }}
+        </button>
     </div>
 
     <!-- Charts Row -->
@@ -44,10 +48,10 @@
 
             <!-- Canvas -->
             <div class="chart-wrap">
-                <div class="chart-empty" *ngIf="forecasts.length === 0 && !loading">
+                <div class="chart-empty" [style.display]="forecasts.length === 0 && !loading ? 'flex' : 'none'">
                     <span>⚠ No forecast data — click "🚀 Run Forecast Now"</span>
                 </div>
-                <canvas #barCanvas *ngIf="forecasts.length > 0"></canvas>
+                <canvas id="ssx-bar-canvas" style="display:block"></canvas>
             </div>
 
             <!-- Scroll Bar -->
@@ -72,12 +76,12 @@
                 <span class="badge-green" *ngIf="totalAtRisk === 0 && forecasts.length > 0">✅ All Safe</span>
             </div>
             <div class="donut-wrap">
-                <canvas #doughnutCanvas *ngIf="forecasts.length > 0"></canvas>
-                <div class="donut-centre" *ngIf="forecasts.length > 0">
+                <canvas id="ssx-donut-canvas" style="display:block"></canvas>
+                <div class="donut-centre" [style.display]="forecasts.length > 0 ? 'flex' : 'none'">
                     <div class="donut-num">{{ forecasts.length }}</div>
                     <div class="donut-sub">products</div>
                 </div>
-                <div class="chart-empty" *ngIf="forecasts.length === 0 && !loading">
+                <div class="chart-empty" [style.display]="forecasts.length === 0 && !loading ? 'flex' : 'none'">
                     <span>No data</span>
                 </div>
             </div>

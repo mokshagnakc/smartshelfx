@@ -21,8 +21,10 @@
             </select>
             <select class="filter-sel" [(ngModel)]="filterStatus" (change)="onSearch()">
                 <option value="">All Status</option>
+                <option value="critical">Critical</option>
                 <option value="low">Low Stock</option>
                 <option value="out">Out of Stock</option>
+                <option value="in_stock">In Stock</option>
             </select>
         </div>
         <div class="toolbar-right">
@@ -39,7 +41,20 @@
         </div>
     </div>
 
-    <!-- Add / Edit Form Panel -->
+    <!-- Import Error Panel -->
+    <div class="import-error-panel" *ngIf="importError">
+        <div class="error-icon">⚠️</div>
+        <div class="error-body">
+            <strong>Import Failed — Column Mismatch</strong>
+            <p>{{ importError }}</p>
+            <p class="error-fix">
+                👉 Rename your columns to match:
+                <code>name</code>, <code>sku</code>, <code>category</code>
+                — or click <strong>📄 Template</strong> and use that format.
+            </p>
+        </div>
+        <button class="close-btn" (click)="importError = ''">✕</button>
+    </div>
     <div class="form-panel" *ngIf="showForm">
         <div class="form-panel-header">
             <h3>{{ editing ? '✏️ Edit Product' : '➕ Add New Product' }}</h3>
@@ -85,8 +100,11 @@
             </div>
             <div class="form-row-2">
                 <div class="form-group">
-                    <label>Vendor ID <span class="hint">(optional)</span></label>
-                    <input type="number" formControlName="vendor_id" placeholder="Leave blank if none">
+                    <label>Vendor <span class="hint">(optional)</span></label>
+                    <select formControlName="vendor_id">
+                        <option [value]="null">— No vendor —</option>
+                        <option *ngFor="let v of vendors" [value]="v.id">{{ v.name }} (ID: {{ v.id }})</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>Expiry Date <span class="hint">(optional)</span></label>
@@ -125,6 +143,7 @@
                     <col style="width: 90px">
                     <col style="width: 110px">
                     <col style="width: 110px">
+                    <col style="width: 110px">
                     <col style="width: 120px">
                     <col style="width: 130px">
                 </colgroup>
@@ -136,6 +155,7 @@
                         <th class="text-center">Stock</th>
                         <th class="text-center">Reorder Lvl</th>
                         <th class="text-right">Unit Price</th>
+                        <th class="text-center">Vendor</th>
                         <th class="text-center">Status</th>
                         <th class="text-center">Actions</th>
                     </tr>
@@ -155,6 +175,10 @@
                         </td>
                         <td class="text-center muted">{{ p.reorder_level }}</td>
                         <td class="text-right">₹{{ p.unit_price | number:'1.2-2' }}</td>
+                        <td class="text-center">
+                            <span class="vendor-id-tag" *ngIf="p.vendor_id">{{ getVendorName(p.vendor_id) }}</span>
+                            <span class="muted" *ngIf="!p.vendor_id">—</span>
+                        </td>
                         <td class="text-center">
                             <span class="badge" [ngClass]="statusClass(p)">{{ statusLabel(p) }}</span>
                         </td>

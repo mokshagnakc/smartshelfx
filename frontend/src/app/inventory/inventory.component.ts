@@ -3,8 +3,10 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../shared/services/api.service';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../environments/environment';
 import { NotificationService } from '../shared/services/notification.service';
-import { Product } from '../shared/models/interfaces';
+import { Product, User } from '../shared/models/interfaces';
 
 @Component({
     selector: 'app-inventory',
@@ -22,6 +24,7 @@ export class InventoryComponent implements OnInit {
     loading = false;
     showForm = false;
     importing = false;
+    importError = '';
     editing: Product | null = null;
 
     searchTerm = '';
@@ -29,17 +32,21 @@ export class InventoryComponent implements OnInit {
     filterStatus = '';
 
     form!: FormGroup;
-    categories = ['Electronics', 'Furniture', 'Supplies', 'Perishables', 'Other'];
+    categories: string[] = [];
+    vendors: User[] = [];
 
     constructor(
         private api: ApiService,
         private notify: NotificationService,
-        private fb: FormBuilder
+        private fb: FormBuilder,
+        private http: HttpClient
     ) { }
 
     ngOnInit() {
         this.buildForm();
         this.loadProducts();
+        this.loadCategories();
+        this.loadVendors();
     }
 
     buildForm(product?: Product) {
@@ -53,6 +60,29 @@ export class InventoryComponent implements OnInit {
             unit_price: [product?.unit_price ?? 0, Validators.min(0)],
             expiry_date: [product?.expiry_date || '']
         });
+    }
+
+    loadCategories() {
+        this.api.getCategories().subscribe({
+            next: (cats: string[]) => { this.categories = cats; },
+            error: () => { }
+        });
+    }
+
+    loadVendors() {
+        this.http.get<any>(environment.apiUrl + '/auth/users').subscribe({
+            next: res => {
+                const all = Array.isArray(res) ? res : (res.data || []);
+                this.vendors = all.filter((u: any) => u.role === 'VENDOR');
+            },
+            error: () => { }
+        });
+    }
+
+    getVendorName(id: number | null): string {
+        if (!id) return '—';
+        const v = this.vendors.find(v => v.id === id);
+        return v ? v.name : `V-${id}`;
     }
 
     loadProducts() {
@@ -71,8 +101,8 @@ export class InventoryComponent implements OnInit {
             },
             error: () => {
                 this.loading = false;
-                this.products = this.demoProducts();
-                this.total = this.demoProducts().length;
+                this.products = [];
+                this.total = 0;
             }
         });
     }
@@ -128,15 +158,21 @@ export class InventoryComponent implements OnInit {
         this.api.importProductsSheet(file).subscribe({
             next: res => {
                 this.importing = false;
-                this.notify.success(`✅ Imported ${res.imported} products. Skipped: ${res.skipped || 0}`);
+                this.importError = '';
+                this.notify.success(`✅ Imported ${res.imported} products${res.skipped ? '. Skipped: ' + res.skipped : ''}`);
                 this.loadProducts();
                 input.value = '';
             },
             error: err => {
                 this.importing = false;
-                const msg = err.error?.error || err.message || 'Import failed';
-                this.notify.error('Import failed: ' + msg);
                 input.value = '';
+                const body = err.error;
+                if (body?.detected_columns?.length > 0) {
+                    this.importError = `Your file columns: [${body.detected_columns.join(', ')}]. ${body.hint || 'Could not map to name, sku, category.'}`;
+                } else {
+                    this.importError = body?.error || body?.message || 'Import failed. Check file format.';
+                }
+                this.notify.error('Import failed — see details below');
             }
         });
     }
@@ -175,20 +211,5 @@ export class InventoryComponent implements OnInit {
         if (p.current_stock <= p.reorder_level * 0.5) return 'Critical';
         if (p.current_stock <= p.reorder_level) return 'Low Stock';
         return 'In Stock';
-    }
-
-    private demoProducts(): Product[] {
-        return [
-            { id: 1, name: 'Laptop Stand Pro', sku: 'SKU-001', category: 'Electronics', vendor_id: null, reorder_level: 15, current_stock: 5, unit_price: 29.99 },
-            { id: 2, name: 'Ergonomic Chair', sku: 'SKU-002', category: 'Furniture', vendor_id: null, reorder_level: 10, current_stock: 42, unit_price: 299 },
-            { id: 3, name: 'USB-C Hub 7-in-1', sku: 'SKU-042', category: 'Electronics', vendor_id: null, reorder_level: 20, current_stock: 2, unit_price: 49.99 },
-            { id: 4, name: 'Wireless Keyboard', sku: 'SKU-087', category: 'Electronics', vendor_id: null, reorder_level: 25, current_stock: 8, unit_price: 79.99 },
-            { id: 5, name: 'Monitor 27" 4K', sku: 'SKU-103', category: 'Electronics', vendor_id: null, reorder_level: 5, current_stock: 0, unit_price: 599 },
-            { id: 6, name: 'A4 Paper 500pk', sku: 'SKU-120', category: 'Supplies', vendor_id: null, reorder_level: 50, current_stock: 200, unit_price: 12.99 },
-            { id: 7, name: 'Mechanical Mouse', sku: 'SKU-156', category: 'Electronics', vendor_id: null, reorder_level: 30, current_stock: 11, unit_price: 59.99 },
-            { id: 8, name: 'Standing Desk', sku: 'SKU-177', category: 'Furniture', vendor_id: null, reorder_level: 8, current_stock: 15, unit_price: 459 },
-            { id: 9, name: 'Thermal Label Roll', sku: 'SKU-201', category: 'Supplies', vendor_id: null, reorder_level: 10, current_stock: 3, unit_price: 24.99 },
-            { id: 10, name: 'Barcode Scanner', sku: 'SKU-244', category: 'Electronics', vendor_id: null, reorder_level: 10, current_stock: 18, unit_price: 189 },
-        ];
     }
 }

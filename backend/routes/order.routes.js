@@ -1,35 +1,58 @@
 const express = require('express');
-const { PurchaseOrder, Product, User, ForecastResult } = require('../models');
+const { PurchaseOrder, Product, User, sequelize } = require('../models');
 const { authenticate, requireRole } = require('../middleware/auth.middleware');
-const { sendPurchaseOrderEmail } = require('../utils/mailer');
+const { sendPurchaseOrderEmail, sendManagerNotificationEmail } = require('../utils/mailer');
 
 const router = express.Router();
 
 router.use(authenticate);
 
+// ── GET /orders/suggestions ──────────────────────────────────────────────────
 router.get('/suggestions', async (req, res) => {
     try {
-        const suggestions = await ForecastResult.findAll({
-            where: { risk_level: ['HIGH', 'CRITICAL'] },
-            include: [{
-                model: Product,
-                as: 'Product',
-                attributes: ['id', 'name', 'sku', 'category', 'current_stock', 'reorder_level', 'unit_price', 'vendor_id'],
-                include: [{ model: User, as: 'vendor', attributes: ['id', 'name', 'email'] }]
-            }],
-            order: [
-                [{ model: Product, as: 'Product' }, 'current_stock', 'ASC'],
-                ['risk_level', 'DESC']
-            ],
-            limit: 20
-        });
+        const [rows] = await sequelize.query(`
+      SELECT
+        f.id, f.product_id, f.forecast_date,
+        f.predicted_qty, f.confidence, f.risk_level,
+        p.name AS p_name, p.sku AS p_sku, p.category AS p_cat,
+        p.current_stock, p.reorder_level, p.unit_price, p.vendor_id,
+        u.id AS v_id, u.name AS v_name, u.email AS v_email
+      FROM forecast_results f
+      LEFT JOIN products p ON p.id = f.product_id
+      LEFT JOIN users   u ON u.id = p.vendor_id
+      WHERE f.risk_level IN ('HIGH','CRITICAL')
+      ORDER BY p.current_stock ASC, f.risk_level DESC
+      LIMIT 50
+    `);
+
+        const suggestions = (rows || []).map(r => ({
+            id: r.id,
+            product_id: Number(r.product_id),
+            forecast_date: r.forecast_date,
+            predicted_qty: Number(r.predicted_qty) || 0,
+            confidence: Number(r.confidence) || 0,
+            risk_level: r.risk_level || 'LOW',
+            Product: {
+                id: Number(r.product_id),
+                name: r.p_name || ('Product #' + r.product_id),
+                sku: r.p_sku || '',
+                category: r.p_cat || '',
+                current_stock: Number(r.current_stock) || 0,
+                reorder_level: Number(r.reorder_level) || 0,
+                unit_price: Number(r.unit_price) || 0,
+                vendor_id: r.vendor_id || null,
+                vendor: r.v_id ? { id: r.v_id, name: r.v_name, email: r.v_email } : null
+            }
+        }));
 
         res.json(suggestions);
     } catch (err) {
+        console.error('[GET /orders/suggestions] error:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
 
+// ── GET /orders ──────────────────────────────────────────────────────────────
 router.get('/', async (req, res) => {
     try {
         const { page = 1, limit = 20, status, vendor_id } = req.query;
@@ -39,7 +62,7 @@ router.get('/', async (req, res) => {
         if (status) where.status = status;
 
         if (req.user.role === 'VENDOR') {
-            where.vendor_id = req.user.id;
+            where.vendor_id = Number(req.user.id);
         } else if (vendor_id) {
             where.vendor_id = Number(vendor_id);
         }
@@ -47,28 +70,22 @@ router.get('/', async (req, res) => {
         const { count, rows } = await PurchaseOrder.findAndCountAll({
             where,
             include: [
-                {
-                    model: Product,
-                    as: 'Product',
-                    attributes: ['id', 'name', 'sku', 'category', 'unit_price']
-                },
-                {
-                    model: User,
-                    as: 'vendor',
-                    attributes: ['id', 'name', 'email']
-                }
+                { model: Product, as: 'Product', attributes: ['id', 'name', 'sku', 'category', 'unit_price'] },
+                { model: User, as: 'vendor', attributes: ['id', 'name', 'email'] }
             ],
-            order: [['created_at', 'DESC']],
+            order: [['id', 'DESC']],
             limit: Number(limit),
             offset
         });
 
         res.json({ total: count, page: Number(page), data: rows });
     } catch (err) {
+        console.error('[GET /orders] error:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
 
+// ── GET /orders/:id ──────────────────────────────────────────────────────────
 router.get('/:id', async (req, res) => {
     try {
         const order = await PurchaseOrder.findByPk(req.params.id, {
@@ -80,7 +97,7 @@ router.get('/:id', async (req, res) => {
 
         if (!order) return res.status(404).json({ error: 'Order not found' });
 
-        if (req.user.role === 'VENDOR' && order.vendor_id !== req.user.id) {
+        if (req.user.role === 'VENDOR' && Number(order.vendor_id) !== Number(req.user.id)) {
             return res.status(403).json({ error: 'Access denied' });
         }
 
@@ -90,6 +107,7 @@ router.get('/:id', async (req, res) => {
     }
 });
 
+// ── POST /orders — manually create PO ───────────────────────────────────────
 router.post('/', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
     try {
         const { product_id, vendor_id, quantity, notes } = req.body;
@@ -101,7 +119,6 @@ router.post('/', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
         const product = await Product.findByPk(product_id, {
             include: [{ model: User, as: 'vendor', attributes: ['id', 'name', 'email'] }]
         });
-
         if (!product) return res.status(404).json({ error: 'Product not found' });
 
         const resolvedVendorId = vendor_id || product.vendor_id;
@@ -146,6 +163,7 @@ router.post('/', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
     }
 });
 
+// ── PUT /orders/:id/status ───────────────────────────────────────────────────
 router.put('/:id/status', async (req, res) => {
     try {
         const { status } = req.body;
@@ -159,7 +177,7 @@ router.put('/:id/status', async (req, res) => {
         if (!order) return res.status(404).json({ error: 'Order not found' });
 
         if (req.user.role === 'VENDOR') {
-            if (order.vendor_id !== req.user.id) {
+            if (Number(order.vendor_id) !== Number(req.user.id)) {
                 return res.status(403).json({ error: 'Access denied' });
             }
             if (!['APPROVED', 'CANCELLED'].includes(status)) {
@@ -175,6 +193,33 @@ router.put('/:id/status', async (req, res) => {
                 { model: User, as: 'vendor', attributes: ['id', 'name', 'email'] }
             ]
         });
+
+        // ── Email managers when vendor approves or rejects ───────────
+        if (req.user.role === 'VENDOR' && ['APPROVED', 'CANCELLED'].includes(status)) {
+            try {
+                const managers = await User.findAll({
+                    where: { role: ['ADMIN', 'MANAGER'] },
+                    attributes: ['name', 'email']
+                });
+                for (const mgr of managers) {
+                    if (mgr.email) {
+                        await sendManagerNotificationEmail({
+                            managerEmail: mgr.email,
+                            managerName: mgr.name,
+                            vendorName: updatedOrder.vendor?.name || 'Vendor',
+                            productName: updatedOrder.Product?.name || 'Unknown',
+                            productSku: updatedOrder.Product?.sku || '—',
+                            quantity: updatedOrder.quantity,
+                            orderId: updatedOrder.id,
+                            decision: status,
+                            notes: updatedOrder.notes || null
+                        });
+                    }
+                }
+            } catch (mailErr) {
+                console.error('Manager notification email failed:', mailErr.message);
+            }
+        }
 
         res.json(updatedOrder);
     } catch (err) {

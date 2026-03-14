@@ -2,7 +2,7 @@ const express = require('express');
 const { Op } = require('sequelize');
 const { sequelize, StockTransaction, Product, User, Alert } = require('../models');
 const { authenticate, requireRole } = require('../middleware/auth.middleware');
-const { createStockAlert } = require('../utils/alertHelper');
+const { checkAndCreatePO } = require('../utils/alertHelper');
 
 const router = express.Router();
 
@@ -94,8 +94,9 @@ router.post('/', requireRole('ADMIN', 'MANAGER'), async (req, res) => {
         await t.commit();
 
         await product.reload();
-        if (newStock <= product.reorder_level) {
-            await createStockAlert(product);
+        // Auto-create alert + PO whenever stock drops to/below reorder level
+        if (type === 'OUT' && newStock <= product.reorder_level) {
+            await checkAndCreatePO(product);
         }
 
         res.status(201).json({

@@ -1,7 +1,9 @@
 import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { Router } from '@angular/router';
 import { Chart, registerables } from 'chart.js';
+import { FormsModule } from '@angular/forms';
 import { ApiService } from '../shared/services/api.service';
 import { AuthService } from '../shared/services/auth.service';
 import { AnalyticsSummary, Alert, PurchaseOrder, Product } from '../shared/models/interfaces';
@@ -11,7 +13,7 @@ Chart.register(...registerables);
 @Component({
     selector: 'app-dashboard',
     standalone: true,
-    imports: [CommonModule, RouterModule],
+    imports: [CommonModule, RouterModule, FormsModule],
     templateUrl: './dashboard.component.html',
     styleUrls: ['./dashboard.component.scss']
 })
@@ -30,6 +32,11 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     recentOrders: PurchaseOrder[] = [];
     lowStockItems: Product[] = [];
     loading = true;
+    vendorPendingPOs: any[] = [];
+    vendorPendingLoading = false;
+    actioningId: number | null = null;
+    categories: string[] = [];
+    filterCategory = '';
 
     private chartsReady = false;
     private txInData: number[] = [];
@@ -39,36 +46,87 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     private catData: number[] = [];
     orderStatusData: number[] = [0, 0, 0, 0];
 
-    constructor(public auth: AuthService, private api: ApiService, private cdr: ChangeDetectorRef) { }
+    constructor(public auth: AuthService, private api: ApiService, private cdr: ChangeDetectorRef, private router: Router) { }
 
     get isAdmin() { return this.auth.getRole() === 'ADMIN'; }
     get isManager() { return this.auth.getRole() === 'MANAGER'; }
     get isVendor() { return this.auth.getRole() === 'VENDOR'; }
 
-    ngOnInit() { this.loadData(); }
+    ngOnInit() { this.loadData(); if (this.isVendor) this.loadVendorPending(); }
     ngAfterViewInit() { this.chartsReady = true; this.tick(); }
     ngOnDestroy() { this.trendChart?.destroy(); this.categoryChart?.destroy(); this.orderStatusChart?.destroy(); }
 
     tick() { this.cdr.detectChanges(); setTimeout(() => this.tryBuildCharts(), 60); }
 
+    loadVendorPending() {
+        this.vendorPendingLoading = true;
+        this.api.getOrders({ status: 'PENDING', limit: 50 }).subscribe({
+            next: res => {
+                this.vendorPendingPOs = res.data || [];
+                this.vendorPendingLoading = false;
+                this.cdr.detectChanges();
+            },
+            error: (err) => {
+                console.error('[Dashboard] loadVendorPending error:', err);
+                this.vendorPendingLoading = false;
+                this.vendorPendingPOs = [];
+                this.cdr.detectChanges();
+            }
+        });
+    }
+
+    approveFromDash(id: number) {
+        this.actioningId = id;
+        this.api.updateOrderStatus(id, 'APPROVED').subscribe({
+            next: () => {
+                this.actioningId = null;
+                this.vendorPendingPOs = this.vendorPendingPOs.filter((p: any) => p.id !== id);
+                this.loadData();
+            },
+            error: () => { this.actioningId = null; }
+        });
+    }
+
+    rejectFromDash(id: number) {
+        this.actioningId = id;
+        this.api.updateOrderStatus(id, 'CANCELLED').subscribe({
+            next: () => {
+                this.actioningId = null;
+                this.vendorPendingPOs = this.vendorPendingPOs.filter((p: any) => p.id !== id);
+                this.loadData();
+            },
+            error: () => { this.actioningId = null; }
+        });
+    }
+
     loadData() {
         this.loading = true;
         this.api.getAnalyticsSummary().subscribe({ next: s => { this.summary = s; }, error: () => { } });
         this.api.getAlerts({ is_read: false, limit: 5 }).subscribe({ next: r => { this.recentAlerts = r.data; }, error: () => { } });
-        this.api.getOrders({ limit: 5 }).subscribe({
-            next: r => { this.recentOrders = r.data; this.buildOrderStatusData(r.data); this.loading = false; this.tick(); },
-            error: () => { this.loading = false; }
-        });
+        if (this.isVendor) {
+            // Vendor: load all their POs for accurate KPI counts
+            this.api.getOrders({ limit: 100 }).subscribe({
+                next: r => {
+                    this.recentOrders = r.data.slice(0, 5); // show 5 in table
+                    this.buildOrderStatusData(r.data);       // count from ALL
+                    this.loading = false; this.tick();
+                },
+                error: () => { this.loading = false; }
+            });
+        } else {
+            this.api.getOrders({ limit: 5 }).subscribe({
+                next: r => { this.recentOrders = r.data; this.buildOrderStatusData(r.data); this.loading = false; this.tick(); },
+                error: () => { this.loading = false; }
+            });
+        }
         if (!this.isVendor) {
             this.api.getProducts({ status: 'low', limit: 6 }).subscribe({ next: r => { this.lowStockItems = r.data; }, error: () => { } });
             this.api.getTransactions({ limit: 200 }).subscribe({
                 next: r => { this.buildTrendData(r.data || []); this.tick(); },
                 error: () => { this.txLabels = ['W1', 'W2', 'W3', 'W4', 'W5', 'W6']; this.txInData = [0, 0, 0, 0, 0, 0]; this.txOutData = [0, 0, 0, 0, 0, 0]; this.tick(); }
             });
-            this.api.getProducts({ limit: 200 }).subscribe({
-                next: r => { this.buildCategoryData(r.data || []); this.tick(); },
-                error: () => { }
-            });
+            this.api.getCategories().subscribe({ next: (cats: string[]) => { this.categories = cats; }, error: () => { } });
+            this.loadFilteredProducts();
         }
     }
 
@@ -89,6 +147,21 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
         this.txInData = Object.values(weeks).map(w => w.in);
         this.txOutData = Object.values(weeks).map(w => w.out);
     }
+
+    loadFilteredProducts() {
+        const params: any = { limit: 200 };
+        if (this.filterCategory) params.category = this.filterCategory;
+        this.api.getProducts(params).subscribe({
+            next: r => {
+                this.buildCategoryData(r.data || []);
+                this.lowStockItems = (r.data || []).filter((p: any) => p.current_stock <= p.reorder_level).slice(0, 6);
+                this.tick();
+            },
+            error: () => { }
+        });
+    }
+
+    onCategoryChange() { this.loadFilteredProducts(); }
 
     buildCategoryData(products: any[]) {
         const cats: Record<string, number> = {};

@@ -12,6 +12,7 @@ const forecastRoutes = require('./routes/forecast.routes');
 const orderRoutes = require('./routes/order.routes');
 const alertRoutes = require('./routes/alert.routes');
 const analyticsRoutes = require('./routes/analytics.routes');
+const { startPOScheduler } = require('./utils/poScheduler');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -63,11 +64,12 @@ const start = async () => {
     try {
         await sequelize.authenticate();
         console.log('✅ Database connected.');
-        await sequelize.sync({ alter: true });
+        await sequelize.sync({ alter: false });
         console.log('✅ Models synced.');
         app.listen(PORT, '0.0.0.0', () => {
             console.log(`✅ SmartShelfX API running on http://localhost:${PORT}`);
             console.log(`   Health check: http://localhost:${PORT}/api/health`);
+            startPOScheduler();
         });
     } catch (err) {
         console.error('❌ Startup failed:', err.message);

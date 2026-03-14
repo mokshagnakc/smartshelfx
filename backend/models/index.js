@@ -144,12 +144,15 @@ const PurchaseOrder = sequelize.define('PurchaseOrder', {
     notes: {
         type: DataTypes.TEXT,
         allowNull: true
+    },
+    created_at: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW
     }
 }, {
     tableName: 'purchase_orders',
-    timestamps: false,
-    createdAt: 'created_at',
-    updatedAt: 'updated_at'
+    timestamps: false
 });
 
 const Alert = sequelize.define('Alert', {
@@ -159,6 +162,10 @@ const Alert = sequelize.define('Alert', {
         primaryKey: true
     },
     product_id: {
+        type: DataTypes.BIGINT,
+        allowNull: true
+    },
+    vendor_id: {
         type: DataTypes.BIGINT,
         allowNull: true
     },
@@ -213,12 +220,15 @@ const ForecastResult = sequelize.define('ForecastResult', {
         type: DataTypes.ENUM('LOW', 'MEDIUM', 'HIGH', 'CRITICAL'),
         allowNull: false,
         defaultValue: 'LOW'
+    },
+    created_at: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW
     }
 }, {
     tableName: 'forecast_results',
-    timestamps: false,
-    createdAt: 'created_at',
-    updatedAt: false
+    timestamps: false
 });
 
 Product.belongsTo(User, { foreignKey: 'vendor_id', as: 'vendor' });
@@ -238,6 +248,8 @@ User.hasMany(PurchaseOrder, { foreignKey: 'vendor_id', as: 'orders' });
 
 Alert.belongsTo(Product, { foreignKey: 'product_id', as: 'Product' });
 Product.hasMany(Alert, { foreignKey: 'product_id', as: 'alerts' });
+Alert.belongsTo(User, { foreignKey: 'vendor_id', as: 'Vendor' });
+User.hasMany(Alert, { foreignKey: 'vendor_id', as: 'vendorAlerts' });
 
 ForecastResult.belongsTo(Product, { foreignKey: 'product_id', as: 'Product' });
 Product.hasMany(ForecastResult, { foreignKey: 'product_id', as: 'forecasts' });

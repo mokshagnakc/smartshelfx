@@ -78,6 +78,15 @@ export class AuthService {
     isManager(): boolean { return ['ADMIN', 'MANAGER'].includes(this.getRole()); }
     isVendor(): boolean { return this.getRole() === 'VENDOR'; }
 
+    getUserId(): number | null {
+        try {
+            const token = localStorage.getItem('ssxToken');
+            if (!token) return null;
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            return payload.id || payload.userId || null;
+        } catch { return null; }
+    }
+
     getMe(): Observable<User> {
         return this.http.get<User>(`${this.API}/auth/me`).pipe(
             tap(user => this.currentUser.set(user))

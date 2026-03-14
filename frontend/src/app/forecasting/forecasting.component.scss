@@ -105,6 +105,16 @@
     transform: none;
 }
 
+.btn.btn-warn {
+    background: linear-gradient(135deg, #ff9500, #cc6a00);
+    color: #fff;
+}
+
+.btn.btn-warn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(255, 149, 0, 0.4);
+}
+
 /* ── Charts Row ── */
 .chart-row {
     display: grid;
@@ -223,11 +233,6 @@
     letter-spacing: 0.3px;
 }
 
-.scroll-pos {
-    font-size: 11px;
-    font-family: monospace;
-    color: #00b4ff;
-}
 
 /* ── Custom Range Slider ── */
 .scroll-track {
@@ -300,30 +305,11 @@
 }
 
 /* ── Product Dots ── */
-.scroll-products {
-    display: flex;
-    gap: 3px;
-    margin-top: 8px;
-    flex-wrap: wrap;
-    justify-content: center;
-}
 
-.scroll-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.12);
-    transition: all 0.2s;
-    cursor: default;
-    flex-shrink: 0;
-}
 
-.scroll-dot-active {
-    background: #00b4ff;
-    box-shadow: 0 0 5px rgba(0, 180, 255, 0.6);
-    width: 8px;
-    height: 8px;
-}
+
+
+
 
 /* ── Doughnut ── */
 .chart-narrow {

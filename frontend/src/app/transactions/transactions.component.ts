@@ -6,6 +6,12 @@ import { ApiService } from '../shared/services/api.service';
 import { NotificationService } from '../shared/services/notification.service';
 import { StockTransaction, Product } from '../shared/models/interfaces';
 
+// Returns local datetime string in format required by <input type="datetime-local">
+function toLocalDateTimeString(date: Date): string {
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 @Component({
     selector: 'app-transactions',
     standalone: true,
@@ -46,7 +52,7 @@ export class TransactionsComponent implements OnInit {
     }
 
     buildForms() {
-        const now = new Date().toISOString().slice(0, 16);
+        const now = toLocalDateTimeString(new Date());
         this.inForm = this.fb.group({
             product_id: ['', Validators.required],
             quantity: ['', [Validators.required, Validators.min(1)]],
@@ -81,8 +87,8 @@ export class TransactionsComponent implements OnInit {
             },
             error: () => {
                 this.loading = false;
-                this.transactions = this.demoTx();
-                this.total = this.demoTx().length;
+                this.transactions = [];
+                this.total = 0;
             }
         });
     }
@@ -93,7 +99,7 @@ export class TransactionsComponent implements OnInit {
         this.api.createTransaction({ ...this.inForm.value, type: 'IN' }).subscribe({
             next: res => {
                 this.notify.success(`✅ Stock-In recorded! Updated stock: ${res.updatedStock}`);
-                this.inForm.reset({ timestamp: new Date().toISOString().slice(0, 16) });
+                this.inForm.reset({ timestamp: toLocalDateTimeString(new Date()) });
                 this.loadTransactions();
                 this.submitting = false;
             },
@@ -110,7 +116,7 @@ export class TransactionsComponent implements OnInit {
         this.api.createTransaction({ ...this.outForm.value, type: 'OUT' }).subscribe({
             next: res => {
                 this.notify.success(`📤 Stock-Out recorded! Remaining: ${res.updatedStock}`);
-                this.outForm.reset({ timestamp: new Date().toISOString().slice(0, 16) });
+                this.outForm.reset({ timestamp: toLocalDateTimeString(new Date()) });
                 this.loadTransactions();
                 this.submitting = false;
             },
@@ -124,15 +130,5 @@ export class TransactionsComponent implements OnInit {
     switchTab(tab: 'IN' | 'OUT' | 'HISTORY') {
         this.activeTab = tab;
         if (tab === 'HISTORY') { this.page = 1; this.loadTransactions(); }
-    }
-
-    private demoTx(): StockTransaction[] {
-        return [
-            { id: 1024, product_id: 1, Product: { id: 1, name: 'Laptop Stand Pro', sku: 'SKU-001', category: 'Electronics', vendor_id: null, reorder_level: 15, current_stock: 5, unit_price: 29.99 }, quantity: 50, type: 'IN', timestamp: '2026-01-15T09:30:00', handled_by: 1 },
-            { id: 1023, product_id: 3, Product: { id: 3, name: 'USB-C Hub 7-in-1', sku: 'SKU-042', category: 'Electronics', vendor_id: null, reorder_level: 20, current_stock: 2, unit_price: 49.99 }, quantity: 10, type: 'OUT', timestamp: '2026-01-14T14:22:00', handled_by: 1 },
-            { id: 1022, product_id: 4, Product: { id: 4, name: 'Wireless Keyboard', sku: 'SKU-087', category: 'Electronics', vendor_id: null, reorder_level: 25, current_stock: 8, unit_price: 79.99 }, quantity: 30, type: 'IN', timestamp: '2026-01-12T11:05:00', handled_by: 1 },
-            { id: 1021, product_id: 5, Product: { id: 5, name: 'Monitor 27" 4K', sku: 'SKU-103', category: 'Electronics', vendor_id: null, reorder_level: 5, current_stock: 0, unit_price: 599 }, quantity: 5, type: 'OUT', timestamp: '2026-01-10T16:48:00', handled_by: 1 },
-            { id: 1020, product_id: 6, Product: { id: 6, name: 'A4 Paper 500pk', sku: 'SKU-120', category: 'Supplies', vendor_id: null, reorder_level: 50, current_stock: 200, unit_price: 12.99 }, quantity: 100, type: 'IN', timestamp: '2026-01-09T08:15:00', handled_by: 1 },
-        ] as any[];
     }
 }

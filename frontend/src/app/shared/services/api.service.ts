@@ -25,6 +25,10 @@ export class ApiService {
     }
 
     // ─── Products ──────────────────────────────────────────────────
+    getCategories(): Observable<string[]> {
+        return this.http.get<string[]>(`${this.API}/products/categories`);
+    }
+
     getProducts(filters: ProductFilterParams = {}): Observable<ProductListResponse> {
         return this.http.get<ProductListResponse>(`${this.API}/products`, { params: this.params(filters) });
     }
@@ -61,10 +65,16 @@ export class ApiService {
 
     // ─── Forecast ──────────────────────────────────────────────────
     getForecasts(): Observable<ForecastResult[]> {
-        return this.http.get<ForecastResult[]>(`${this.API}/forecast`);
+        return this.http.get<ForecastResult[]>(`${this.API}/forecast?_=${Date.now()}`);
     }
     runForecast(): Observable<{ success: boolean; message: string; forecasts: ForecastResult[] }> {
         return this.http.post<any>(`${this.API}/forecast/run`, {});
+    }
+    triggerVendorAlerts(): Observable<any> {
+        return this.http.post<any>(`${this.API}/forecast/trigger-alerts`, {});
+    }
+    post(path: string, body: any): Observable<any> {
+        return this.http.post<any>(`${this.API}/${path}`, body);
     }
     getProductForecast(productId: number): Observable<ForecastResult[]> {
         return this.http.get<ForecastResult[]>(`${this.API}/forecast/${productId}`);
@@ -110,5 +120,9 @@ export class ApiService {
     }
     getCategoryBreakdown(): Observable<CategoryBreakdown[]> {
         return this.http.get<CategoryBreakdown[]>(`${this.API}/analytics/category-breakdown`);
+    }
+
+    getUsers(): Observable<any[]> {
+        return this.http.get<any[]>(`${this.API}/auth/users`);
     }
 }

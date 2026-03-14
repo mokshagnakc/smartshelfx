@@ -62,7 +62,8 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
 
 CREATE TABLE IF NOT EXISTS alerts (
   id         BIGINT     AUTO_INCREMENT PRIMARY KEY,
-  product_id BIGINT,
+  product_id BIGINT, 
+  vendor_id  BIGINT,
   type       ENUM('LOW_STOCK','OUT_OF_STOCK','EXPIRY','RESTOCK_SUGGESTED') NOT NULL,
   message    TEXT       NOT NULL,
   is_read    TINYINT(1) NOT NULL DEFAULT 0,

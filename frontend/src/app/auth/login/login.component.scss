@@ -425,11 +425,39 @@ input {
 
 .error-banner {
     background: rgba(255, 77, 109, 0.12);
-    border: 1px solid rgba(255, 77, 109, 0.3);
+    border: 1px solid rgba(255, 77, 109, 0.4);
+    border-left: 4px solid #ff4d6d;
     border-radius: 8px;
     color: #ff4d6d;
     font-size: 13px;
-    padding: 10px 14px;
+    font-weight: 500;
+    padding: 12px 16px;
     margin-bottom: 14px;
-    text-align: center;
+    text-align: left;
+    line-height: 1.5;
+    animation: shakeX 0.4s ease;
+}
+
+@keyframes shakeX {
+
+    0%,
+    100% {
+        transform: translateX(0)
+    }
+
+    20% {
+        transform: translateX(-6px)
+    }
+
+    40% {
+        transform: translateX(6px)
+    }
+
+    60% {
+        transform: translateX(-4px)
+    }
+
+    80% {
+        transform: translateX(4px)
+    }
 }
