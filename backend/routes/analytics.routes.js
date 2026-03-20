@@ -133,4 +133,49 @@ router.get('/low-stock', async (req, res) => {
     }
 });
 
-module.exports = router;
+router.get('/stock-movement', async (req, res) => {
+    try {
+        const period = req.query.period || 'month'; // 'day' | 'month' | 'year'
+
+        const fmtMap = {
+            day: '%Y-%m-%d',
+            month: '%Y-%m',
+            year: '%Y'
+        };
+        const fmt = fmtMap[period] || '%Y-%m';
+
+        // How far back to look
+        const sinceMap = { day: 30, month: 6, year: 5 };
+        const daysBack = (sinceMap[period] || 6);
+        const since = new Date();
+        if (period === 'day') since.setDate(since.getDate() - daysBack);
+        else if (period === 'month') since.setMonth(since.getMonth() - daysBack);
+        else since.setFullYear(since.getFullYear() - daysBack);
+
+        const rows = await StockTransaction.findAll({
+            attributes: [
+                [sequelize.fn('DATE_FORMAT', sequelize.col('timestamp'), fmt), 'label'],
+                'type',
+                [sequelize.fn('SUM', sequelize.col('quantity')), 'total']
+            ],
+            where: { timestamp: { [Op.gte]: since } },
+            group: [sequelize.fn('DATE_FORMAT', sequelize.col('timestamp'), fmt), 'type'],
+            order: [[sequelize.fn('DATE_FORMAT', sequelize.col('timestamp'), fmt), 'ASC']],
+            raw: true
+        });
+
+        // Pivot into { label, purchases, sales }
+        const map = {};
+        for (const r of rows) {
+            if (!map[r.label]) map[r.label] = { label: r.label, purchases: 0, sales: 0 };
+            if (r.type === 'IN') map[r.label].purchases += Number(r.total);
+            else map[r.label].sales += Number(r.total);
+        }
+
+        res.json(Object.values(map));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+module.exports = router;
