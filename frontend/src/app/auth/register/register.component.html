@@ -33,9 +33,11 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <div class="input-wrap"><span class="input-icon">&#9993;</span>
-                        <input type="email" formControlName="email" placeholder="Email Address*" class="has-icon">
+                    <div class="input-wrap"><span class="input-icon">✉️</span>
+                        <input type="email" formControlName="email" placeholder="Work Email (e.g. you@smartshelfx.com)*"
+                            class="has-icon">
                     </div>
+                    <div class="hint-text">This is your SmartShelfX login email</div>
                     <div class="error" *ngIf="f['email'].touched && f['email'].errors?.['required']">Required</div>
                     <div class="error" *ngIf="f['email'].touched && f['email'].errors?.['email']">Invalid email</div>
                 </div>
@@ -43,6 +45,7 @@
                     <div class="input-wrap"><span class="input-icon">💼</span>
                         <select formControlName="role" class="has-icon">
                             <option value="" disabled selected>Designated Role*</option>
+                            <option value="ADMIN">Admin</option>
                             <option value="MANAGER">Warehouse Manager</option>
                             <option value="VENDOR">Vendor</option>
                         </select>

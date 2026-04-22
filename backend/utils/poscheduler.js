@@ -1,4 +1,4 @@
-const { Product, PurchaseOrder, User } = require('../models');
+const { Product, PurchaseOrder, User, Alert } = require('../models');
 const { sendPurchaseOrderEmail } = require('./mailer');
 
 const INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
@@ -45,6 +45,21 @@ const runPOCheck = async () => {
 
             console.log(`[Scheduler] ✅ PO #${po.id} created → ${name} | ${riskLevel} | vendor: ${vendor?.name || vendor_id}`);
             created++;
+
+            // Also create alert for the vendor
+            try {
+                await Alert.destroy({ where: { product_id: id, type: 'LOW_STOCK', is_read: false } });
+                await Alert.destroy({ where: { product_id: id, type: 'OUT_OF_STOCK', is_read: false } });
+                await Alert.create({
+                    product_id: id,
+                    vendor_id,
+                    type: current_stock === 0 ? 'OUT_OF_STOCK' : 'LOW_STOCK',
+                    message: `${name} (${sku}): Stock is ${riskLevel}. Only ${current_stock} units left (reorder level: ${reorder_level}). PO #${po.id} auto-generated.`,
+                    is_read: false
+                });
+            } catch (alertErr) {
+                console.error(`[Scheduler] Alert create failed for ${name}:`, alertErr.message);
+            }
 
             // Email vendor
             if (vendor && vendor.email) {

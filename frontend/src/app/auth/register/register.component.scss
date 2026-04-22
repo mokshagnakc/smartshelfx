@@ -456,3 +456,10 @@ select {
         transform: translateY(0);
     }
 }
+
+.hint-text {
+    font-size: 11px;
+    color: rgba(0, 180, 255, 0.6);
+    margin-top: 4px;
+    padding-left: 2px;
+}

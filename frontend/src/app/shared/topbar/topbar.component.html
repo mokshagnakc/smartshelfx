@@ -9,14 +9,14 @@
 
     <div class="topbar-right">
 
-
+        <!-- Notification Bell -->
         <div class="notif-wrap" (click)="toggleDropdown($event)">
             <button class="icon-btn notif-btn">
                 🔔
                 <span class="badge" *ngIf="unreadCount > 0">{{ unreadCount > 9 ? '9+' : unreadCount }}</span>
             </button>
 
-
+            <!-- Dropdown -->
             <div class="notif-dropdown" *ngIf="showDropdown" (click)="$event.stopPropagation()">
                 <div class="notif-header">
                     <span>Notifications</span>
@@ -40,7 +40,7 @@
             </div>
         </div>
 
-
+        <!-- User chip -->
         <div class="user-chip">
             <div class="avatar">{{ auth.getInitials() }}</div>
             <div class="user-meta">
@@ -52,5 +52,4 @@
     </div>
 </header>
 
-
-<div class="overlay" *ngIf="showDropdown" (click)="showDropdown = false"></div>
+<!-- Overlay to close dropdown -->

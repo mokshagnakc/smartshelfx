@@ -118,4 +118,34 @@ const sendManagerNotificationEmail = async ({ managerEmail, managerName, vendorN
   });
 };
 
-module.exports = { sendPurchaseOrderEmail, sendManagerNotificationEmail };
+
+/* ── Sent to USER for password reset link ──────────────────────── */
+const sendForgotPasswordEmail = async ({ toEmail, toName, resetUrl, systemEmail }) => {
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM || 'SmartShelfX <noreply@smartshelfx.com>',
+    to: toEmail,
+    subject: 'SmartShelfX — Reset Your Password',
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#07090f;border-radius:14px;padding:36px;color:#fff;">
+        <h1 style="font-size:22px;font-weight:800;letter-spacing:2px;margin-bottom:4px;">SmartShelfX</h1>
+        <p style="font-size:11px;color:#00b4ff;letter-spacing:3px;text-transform:uppercase;margin-bottom:28px;">AI-POWERED INVENTORY</p>
+        <h2 style="margin-bottom:8px;">Password Reset Request</h2>
+        <p style="font-size:14px;color:rgba(255,255,255,0.65);line-height:1.6;margin-bottom:24px;">
+          Hi <strong>${toName}</strong>, we received a request to reset your SmartShelfX password.<br>
+          This link expires in <strong>15 minutes</strong>.
+        </p>
+        ${systemEmail ? `<p style="font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:20px;">Your SmartShelfX login email: <strong style="color:#00b4ff;">${systemEmail}</strong></p>` : ''}
+        <div style="text-align:center;margin:28px 0;">
+          <a href="${resetUrl}"
+             style="display:inline-block;padding:13px 32px;background:linear-gradient(135deg,#0070cc,#00b4ff);border-radius:8px;color:#fff;text-decoration:none;font-weight:700;font-size:14px;">
+            Reset My Password →
+          </a>
+        </div>
+        <p style="font-size:12px;color:rgba(255,255,255,0.3);margin-top:28px;">
+          If you did not request this, safely ignore this email. Your password will not change.
+        </p>
+      </div>`
+  });
+};
+
+module.exports = { sendPurchaseOrderEmail, sendManagerNotificationEmail, sendForgotPasswordEmail };

@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { ApiService } from '../services/api.service';
@@ -27,13 +27,19 @@ export class TopbarComponent implements OnInit {
     loadAlerts() {
         this.api.getAlerts({ is_read: false, limit: 5 }).subscribe({
             next: res => { this.alerts = res.data; this.unreadCount = res.unread; },
-            error: () => { }
+            error: () => { /* ignore – show 0 */ }
         });
     }
 
     toggleDropdown(event: Event) {
         event.stopPropagation();
         this.showDropdown = !this.showDropdown;
+    }
+
+    // Close dropdown when clicking anywhere outside it
+    @HostListener('document:click')
+    onDocumentClick() {
+        this.showDropdown = false;
     }
 
     markRead(id: number) {

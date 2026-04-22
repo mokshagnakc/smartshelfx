@@ -5,7 +5,8 @@ const { Alert, PurchaseOrder, Product, User } = require('../models');
    Only for the assigned vendor. Admin/Manager never receive alerts.
 ───────────────────────────────────────────────────────────────── */
 const createStockAlert = async (product) => {
-    const { id, name, sku, current_stock, reorder_level, vendor_id } = product;
+    const { id, name, sku, current_stock, reorder_level } = product;
+    const vendor_id = Number(product.vendor_id);
 
     // Alerts only go to vendors — skip if no vendor assigned
     if (!vendor_id) return;
@@ -37,7 +38,8 @@ const createStockAlert = async (product) => {
      - no PENDING or APPROVED PO already exists for this product
 ───────────────────────────────────────────────────────────────── */
 const createAutoPO = async (product) => {
-    const { id, name, sku, current_stock, reorder_level, vendor_id } = product;
+    const { id, name, sku, current_stock, reorder_level } = product;
+    const vendor_id = Number(product.vendor_id);
 
     // Must have a vendor to create a PO
     if (!vendor_id) return null;

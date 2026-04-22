@@ -46,6 +46,7 @@ export class RegisterComponent {
             name: ['', [Validators.required, Validators.minLength(2)]],
             username: ['', Validators.required],
             email: ['', [Validators.required, Validators.email]],
+            personal_email: ['', [Validators.required, Validators.email]],
             role: ['', Validators.required],
             password: ['', [Validators.required, passwordStrengthValidator]],
             confirmPassword: ['', Validators.required]
@@ -65,6 +66,7 @@ export class RegisterComponent {
             name: this.form.value.name.trim(),
             username: this.form.value.username.trim(),
             email: this.form.value.email.trim().toLowerCase(),
+            personal_email: this.form.value.personal_email.trim().toLowerCase(),
             role: this.form.value.role,
             password: this.form.value.password
         };

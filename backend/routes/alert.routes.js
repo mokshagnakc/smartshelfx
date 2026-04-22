@@ -17,7 +17,7 @@ router.get('/', async (req, res) => {
         const { type, is_read, product_id, page = 1, limit = 50 } = req.query;
         const offset = (Number(page) - 1) * Number(limit);
 
-        const where = { vendor_id: req.user.id };
+        const where = { vendor_id: Number(req.user.id) };
         if (type) where.type = type;
         if (product_id) where.product_id = Number(product_id);
         if (is_read !== undefined && is_read !== '') {
@@ -36,7 +36,7 @@ router.get('/', async (req, res) => {
             offset
         });
 
-        const unread = await Alert.count({ where: { vendor_id: req.user.id, is_read: false } });
+        const unread = await Alert.count({ where: { vendor_id: Number(req.user.id), is_read: false } });
 
         res.json({ total: count, unread, page: Number(page), data: rows });
     } catch (err) {
@@ -48,7 +48,7 @@ router.get('/', async (req, res) => {
 router.put('/read-all', async (req, res) => {
     try {
         if (req.user.role !== 'VENDOR') return res.json({ success: true });
-        await Alert.update({ is_read: true }, { where: { is_read: false, vendor_id: req.user.id } });
+        await Alert.update({ is_read: true }, { where: { is_read: false, vendor_id: Number(req.user.id) } });
         res.json({ success: true, message: 'All alerts marked as read' });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -60,7 +60,7 @@ router.put('/:id/read', async (req, res) => {
     try {
         const alert = await Alert.findByPk(req.params.id);
         if (!alert) return res.status(404).json({ error: 'Alert not found' });
-        if (req.user.role === 'VENDOR' && alert.vendor_id !== req.user.id) {
+        if (req.user.role === 'VENDOR' && Number(alert.vendor_id) !== Number(req.user.id)) {
             return res.status(403).json({ error: 'Access denied' });
         }
         await alert.update({ is_read: true });
@@ -75,7 +75,7 @@ router.delete('/:id', async (req, res) => {
     try {
         const alert = await Alert.findByPk(req.params.id);
         if (!alert) return res.status(404).json({ error: 'Alert not found' });
-        if (req.user.role === 'VENDOR' && alert.vendor_id !== req.user.id) {
+        if (req.user.role === 'VENDOR' && Number(alert.vendor_id) !== Number(req.user.id)) {
             return res.status(403).json({ error: 'Access denied' });
         }
         await alert.destroy();

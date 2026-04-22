@@ -29,6 +29,10 @@ const User = sequelize.define('User', {
         type: DataTypes.ENUM('ADMIN', 'MANAGER', 'VENDOR'),
         allowNull: false,
         defaultValue: 'MANAGER'
+    },
+    personal_email: {
+        type: DataTypes.STRING(150),
+        allowNull: true
     }
 }, {
     tableName: 'users',

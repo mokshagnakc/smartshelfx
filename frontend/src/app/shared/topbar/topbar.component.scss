@@ -89,7 +89,7 @@
     padding: 0 3px;
 }
 
-
+/* Notification dropdown */
 .notif-wrap {
     position: relative;
 }
@@ -193,7 +193,7 @@
     color: var(--text-muted);
 }
 
-
+/* User chip */
 .user-chip {
     display: flex;
     align-items: center;
@@ -231,10 +231,4 @@
         text-transform: uppercase;
         letter-spacing: 1px;
     }
-}
-
-.overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 498;
 }
